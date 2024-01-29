@@ -1,7 +1,7 @@
 version: '3'
 
 services:
-  fastzero_database:
+  app_database:
     image: postgres
     volumes:
       - pgdata:/var/lib/postgresql/data
@@ -14,15 +14,16 @@ services:
 
   app:
     image: app
+    entrypoint: ./entrypoint.sh
     build:
       context: .
       dockerfile: Dockerfile
     ports:
       - "8000:8000"
     depends_on:
-      - fastzero_database
+      - app_database
     environment:
-      DATABASE_URL: postgresql://app_user:app_password@fastzero_database:5432/app_db
+      DATABASE_URL: postgresql://app_user:app_password@app_database:5432/app_db
 
 volumes:
   pgdata:
