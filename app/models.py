@@ -13,3 +13,8 @@ class Tournament(Base):
     name = Column(String, nullable=False)
     date_start = Column(DateTime, nullable=False)
     date_end = Column(DateTime, nullable=False)
+
+    @classmethod
+    def create_tournament(cls, **kwargs):
+        new_tournament = cls(**kwargs)
+        return new_tournament
