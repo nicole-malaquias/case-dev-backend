@@ -14,6 +14,7 @@ def test_create_tournament_success():
 
     assert response.status_code == 201
     assert response.json() == {
+        'id': 1,
         'name': 'Torneio de Exemplo',
         'date_start': '2024-01-29T12:00:00',
         'date_end': '2024-02-05T18:00:00',
