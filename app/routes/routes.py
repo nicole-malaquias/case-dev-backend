@@ -5,14 +5,16 @@ from sqlalchemy.orm import Session
 
 from app.database import get_session
 from app.models import Tournament
-from app.schemas import TournamentSchema
+from app.schemas import TournamentSchema, TournamentSchemaResponse
 
 router = APIRouter(prefix='', tags=['/'])
 
 Session = Annotated[Session, Depends(get_session)]
 
 
-@router.post('/tournament', status_code=201, response_model=TournamentSchema)
+@router.post(
+    '/tournament', status_code=201, response_model=TournamentSchemaResponse
+)
 def create_tournament(tournament: TournamentSchema, session: Session):
     """
     Cria um torneio
