@@ -1,8 +1,7 @@
 from fastapi import FastAPI
 
+from app.routes import routes
+
 app = FastAPI()
 
-
-@app.get('/')
-def read_root():
-    return {'message': 'inicio!'}
+app.include_router(routes.router)
