@@ -7,27 +7,28 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.11"
-fastapi = "^0.109.0"
-uvicorn = "^0.27.0.post1"
-sqlalchemy = "^2.0.25"
-pydantic-settings = "^2.1.0"
-alembic = "^1.13.1"
+fastapi = "^0.100.0"
+uvicorn = "^0.22.0"
+pydantic = {extras = ["email"], version = "^2.0.2"}
+sqlalchemy = "^2.0.18"
+pydantic-settings = "2.0.1"
+alembic = "^1.11.1"
+python-jose = {extras = ["cryptography"], version = "^3.3.0"}
+passlib = {extras = ["bcrypt"], version = "^1.7.4"}
+python-multipart = "^0.0.6"
 psycopg2-binary = "^2.9.9"
+decouple = "^0.0.7"
 
 
 [tool.poetry.group.dev.dependencies]
-pytest = "^8.0.0"
+pytest = "^7.4.0"
 pytest-cov = "^4.1.0"
-taskipy = "^1.12.2"
+taskipy = "^1.11.0"
 blue = "^0.9.1"
-ruff = "^0.1.14"
-httpx = "^0.26.0"
-isort = "^5.13.2"
-
-
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+ruff = "^0.0.278"
+httpx = "^0.24.1"
+factory-boy = "^3.2.1"
+freezegun = "^1.2.2"
 
 [tool.ruff]
 line-length = 79
@@ -51,4 +52,7 @@ run = 'uvicorn app.app:app --reload'
 pre_test = 'task lint'
 test = 'pytest -s -x --cov=app -vv'
 post_test = 'coverage html'
-ignr = 'ignr -p python > .gitignore'
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
