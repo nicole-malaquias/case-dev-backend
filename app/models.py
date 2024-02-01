@@ -1,6 +1,8 @@
 import math
 import random
+from typing import Annotated
 
+from fastapi import Depends
 from sqlalchemy import (
     Boolean,
     Column,
@@ -13,13 +15,16 @@ from sqlalchemy import (
     desc,
     or_,
 )
-from sqlalchemy.orm import DeclarativeBase, relationship
+from sqlalchemy.orm import DeclarativeBase, Session, relationship
 from sqlalchemy.orm.exc import NoResultFound
+
+from app.database import get_session
 
 GROUP_1 = 'group_1'
 GROUP_2 = 'group_2'
 STATUS_FINISHED = 'finished'
 STATUS_PENDING = 'pending'
+Session = Annotated[Session, Depends(get_session)]
 
 
 class Base(DeclarativeBase):
@@ -101,7 +106,6 @@ class Competitor(Base):
                 tournament_id=tournament_id,
                 group=estado,
             )
-            print(new_competitor)
             competitors.append(new_competitor)
 
         number_matches = cls._number_of_matches(len(names))
@@ -146,6 +150,9 @@ class Match(Base):
 
     @staticmethod
     def _set_pair(names):
+        """
+        This method sets the pairs for the matches.
+        """
         random.shuffle(names)
         pairs = []
         if len(names) % 2 != 0:
@@ -158,7 +165,10 @@ class Match(Base):
         return pairs
 
     @classmethod
-    def create_match(cls, tournament_id, session):
+    def create_match(cls, tournament_id: int, session: Session):
+        """
+        This method creates the matches for a tournament.
+        """
         existing_tournament = session.query(Tournament).get(tournament_id)
 
         if existing_tournament is None:
@@ -201,7 +211,12 @@ class Match(Base):
         )
 
     @classmethod
-    def _get_competitors_by_group(cls, session, tournament_id, group):
+    def _get_competitors_by_group(
+        cls, session: Session, tournament_id: int, group: str
+    ):
+        """
+        This method gets the competitors by group.
+        """
         return (
             session.query(Competitor)
             .filter(
@@ -216,6 +231,9 @@ class Match(Base):
 
     @classmethod
     def _should_create_final_match(cls, existing_tournament, matches):
+        """
+        This method verifies if the final match should be created.
+        """
         total_experado = existing_tournament.number_matches
         total_atual = len(matches)
 
@@ -228,7 +246,12 @@ class Match(Base):
         return False
 
     @classmethod
-    def _create_final_match(cls, session, tournament_id, last_round):
+    def _create_final_match(
+        cls, session: Session, tournament_id: int, last_round: int
+    ):
+        """
+        This method creates the final match.
+        """
         finalists = (
             session.query(Competitor)
             .filter(
@@ -238,7 +261,6 @@ class Match(Base):
             .limit(2)
             .all()
         )
-        print(finalists)
         if len(finalists) == 2:
             new_match = cls(
                 competitor_1_id=finalists[0].id,
@@ -253,8 +275,15 @@ class Match(Base):
 
     @classmethod
     def _create_matches_for_group(
-        cls, session, tournament_id, competitors, round
+        cls,
+        session: Session,
+        tournament_id: int,
+        competitors: list[Competitor],
+        round: int,
     ):
+        """
+        This method creates the matches for a group.
+        """
         pairs = cls._set_pair(competitors)
 
         for pair in pairs:
@@ -281,7 +310,10 @@ class Match(Base):
         session.commit()
 
     @classmethod
-    def list_matches(cls, tournament_id, session):
+    def list_matches(cls, tournament_id: int, session: Session):
+        """
+        This method lists all matches from a tournament.
+        """
         matches = (
             session.query(Match)
             .filter_by(tournament_id=tournament_id)
@@ -307,7 +339,11 @@ class Match(Base):
         return dic
 
     @classmethod
-    def set_winner(cls, match_id, name, session):
+    def set_winner(cls, match_id: int, name: str, session: Session):
+        """
+        This method sets the winner of a match and updates the state of the
+        competitors.
+        """
         match = session.query(Match).get(match_id)
 
         # Encontrar os competidores pelo nome
@@ -328,15 +364,12 @@ class Match(Base):
                 .one()
             )
         except NoResultFound:
-            # Tratar o caso em que o perdedor não é encontrado
             session.rollback()
             raise ValueError('Competitor not found or match is not valid')
 
-        # Atualizar o estado dos competidores
         competitor_winner.won = True
         competitor_loser.won = False
 
-        # Atualizar o estado do jogo
         match.winner_id = competitor_winner.id
         match.state = STATUS_FINISHED
 

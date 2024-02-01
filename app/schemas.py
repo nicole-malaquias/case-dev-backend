@@ -45,4 +45,3 @@ class MatchTournamentRound(BaseModel):
 
 class MatchTournamentSchema(BaseModel):
     rounds: List[MatchTournamentRound]
-
