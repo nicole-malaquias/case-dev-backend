@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.database import get_session
-from app.models import Competitor, Tournament
+from app.models import Competitor, Match, Tournament
 from app.schemas import (
     CompetitorSchema,
     TournamentSchema,
@@ -40,6 +40,13 @@ def create_tournament(tournament: TournamentSchema, session: Session):
 def register_competitors(
     tournament_id: int, competitor: CompetitorSchema, session: Session
 ):
+    """
+    Registra competidores em um torneio
+
+    Parameters:
+        - tournament_id: O ID do torneio.
+        - names: [string].
+    """
     try:
         Competitor.create_competitor(
             names=competitor.names,
@@ -52,15 +59,19 @@ def register_competitors(
 
 
 @router.get('/tournament/{tournament_id}/match', status_code=201)
-def match_list(
-    tournament_id: int, competitor: CompetitorSchema, session: Session
-):
-    try:
-        Competitor.create_competitor(
-            names=competitor.names,
-            tournament_id=tournament_id,
-            session=session,
-        )
-        return None
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+def get_match_list(tournament_id: int, session: Session):
+    """
+    Obtém a lista de partidas para um torneio específico.
+
+    Parameters:
+        - tournament_id: O ID do torneio.
+        - session: Sessão do SQLAlchemy.
+
+    Returns:
+        Um dicionário contendo informações sobre as partidas.
+    """
+    Match.create_match(tournament_id, session)
+
+    matches_info = Match.list_matches(tournament_id, session)
+
+    return matches_info
