@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 
 from pydantic import BaseModel, validator
 
@@ -28,3 +28,21 @@ class TournamentSchemaResponse(TournamentSchema):
 
 class CompetitorSchema(BaseModel):
     names: List[str]
+
+
+class MatchSchema(BaseModel):
+    competitor_1_id: str
+    competitor_2_id: Optional[str]
+    winner: Optional[str]
+    state: str
+    round: int
+
+
+class MatchTournamentRound(BaseModel):
+    round_name: str
+    matches: List[MatchSchema]
+
+
+class MatchTournamentSchema(BaseModel):
+    rounds: List[MatchTournamentRound]
+
