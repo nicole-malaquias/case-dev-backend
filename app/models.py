@@ -1,3 +1,4 @@
+import logging
 import math
 import random
 from typing import Annotated
@@ -24,7 +25,9 @@ GROUP_1 = 'group_1'
 GROUP_2 = 'group_2'
 STATUS_FINISHED = 'finished'
 STATUS_PENDING = 'pending'
+
 Session = Annotated[Session, Depends(get_session)]
+logger = logging.getLogger(__name__)
 
 
 class Base(DeclarativeBase):
@@ -48,8 +51,22 @@ class Tournament(Base):
     number_matches = Column(Integer, nullable=True)
 
     @classmethod
-    def create_tournament(cls, **kwargs):
+    def create_tournament(cls, session: Session, **kwargs):
+        """
+        Creates a new tournament.
+
+        Parameters:
+            - session: SQLAlchemy session.
+            - **kwargs: Additional tournament data.
+
+        Returns:
+            The created tournament.
+        """
+
         new_tournament = cls(**kwargs)
+        session.add(new_tournament)
+        session.commit()
+        logger.info('Tournament inserted in the bank.')
         return new_tournament
 
 
@@ -73,8 +90,8 @@ class Competitor(Base):
     tournament = relationship('Tournament', back_populates='competitors')
     status = Column(Boolean, default=True)
 
-    @staticmethod
-    def _number_of_matches(number_competitors):
+    @classmethod
+    def _number_of_matches(cls, number_competitors):
         if number_competitors < 2:
             raise ValueError(
                 'O número de participantes deve ser pelo menos 2.'
@@ -84,6 +101,11 @@ class Competitor(Base):
 
     @classmethod
     def create_competitor(cls, names, tournament_id, session):
+        """
+        this function creates a competitor and validates whether the ID
+        of the tournament he wants to participate in exists and adds him
+        to a group that is analogous to championship brackets
+        """
         if tournament_id is None:
             raise ValueError(
                 " The 'tournament_id' is mandatory when creating competitors."
@@ -113,9 +135,9 @@ class Competitor(Base):
             tournament_id
         ).number_matches = number_matches
 
-        session.commit()
         session.add_all(competitors)
         session.commit()
+        logger.info('Competitors inserted in the bank.')
         return
 
 
@@ -148,10 +170,13 @@ class Match(Base):
         Enum('pending', 'finished', name='match_state'), nullable=False
     )
 
-    @staticmethod
-    def _set_pair(names):
+    @classmethod
+    def _set_pair(cls, names):
         """
         This method sets the pairs for the matches.
+        If a list with an odd value arrives,
+        place one of the items alone in a tuple
+
         """
         random.shuffle(names)
         pairs = []
@@ -167,8 +192,11 @@ class Match(Base):
     @classmethod
     def create_match(cls, tournament_id: int, session: Session):
         """
-        This method creates the matches for a tournament.
+        This method creates matches for a tournament,
+        verifies if it is the last round,
+        and adds the competitors to their respective matches.
         """
+        logging.info('Start creating matches.')
         existing_tournament = session.query(Tournament).get(tournament_id)
 
         if existing_tournament is None:
@@ -187,14 +215,14 @@ class Match(Base):
         competitors_group_2 = cls._get_competitors_by_group(
             session, tournament_id, GROUP_2
         )
-
+        logging.info('Verifying if the final match should be created.')
         if cls._should_create_final_match(existing_tournament, matches):
 
             cls._create_final_match(
                 session, tournament_id, existing_tournament.number_matches
             )
             return
-
+        logging.info('Its not necessary create the match')
         if matches and matches[0].round == existing_tournament.number_matches:
             return
 
@@ -202,7 +230,7 @@ class Match(Base):
             return
 
         round = len(matches) + 1
-
+        logging.info('Start creating matches for group 1 and 2.')
         cls._create_matches_for_group(
             session, tournament_id, competitors_group_1, round
         )
@@ -314,59 +342,89 @@ class Match(Base):
         """
         This method lists all matches from a tournament.
         """
-        matches = (
-            session.query(Match)
-            .filter_by(tournament_id=tournament_id)
-            .order_by(desc(Match.round))
-            .all()
-        )
-        dic = {}
-        for match in matches:
-            if f'Round {match.round}' not in dic:
-                dic[f'Round {match.round}'] = []
-            dic[f'Round {match.round}'].append(
-                {
-                    'competitor_1': match.competitor_1.name,
-                    'competitor_2': match.competitor_2.name
-                    if match.competitor_2
-                    else None,
-                    'winner': match.winner.name if match.winner else None,
-                    'state': match.state,
-                    'round': match.round,
-                    'id': match.id,
-                }
-            )
-        return dic
+        logging.info('Finding matches.')
 
-    @classmethod
+        try:
+            matches = (
+                session.query(Match)
+                .filter_by(tournament_id=tournament_id)
+                .order_by(desc(Match.round))
+                .all()
+            )
+
+            if not matches:
+                raise NoResultFound(
+                    'No matches found for the specified tournament.'
+                )
+
+            dic = {}
+            for match in matches:
+                if f'Round {match.round}' not in dic:
+                    dic[f'Round {match.round}'] = []
+                dic[f'Round {match.round}'].append(
+                    {
+                        'competitor_1': match.competitor_1.name,
+                        'competitor_2': match.competitor_2.name
+                        if match.competitor_2
+                        else None,
+                        'winner': match.winner.name if match.winner else None,
+                        'state': match.state,
+                        'round': match.round,
+                        'id': match.id,
+                    }
+                )
+
+            logging.info('Matches found.')
+            return dic
+
+        except NoResultFound as e:
+            logging.warning(
+                f'No matches found for tournament with ID {tournament_id}.'
+            )
+            raise ValueError(str(e))
+
     def set_winner(cls, match_id: int, name: str, session: Session):
         """
         This method sets the winner of a match and updates the state of the
         competitors.
         """
+        logging.info('Setting the winner of the match.')
+        name = name.get('name', '')
         match = session.query(Match).get(match_id)
+        if match is None:
+            logging.error(f'Match with ID {match_id} not found.')
+            raise ValueError(f'Match with ID {match_id} not found.')
 
-        # Encontrar os competidores pelo nome
         competitor_winner = (
             session.query(Competitor).filter(Competitor.name == name).first()
         )
 
-        try:
-            competitor_loser = (
-                session.query(Competitor)
-                .filter(Competitor.name != name)
-                .filter(
-                    or_(
-                        Competitor.id == match.competitor_1_id,
-                        Competitor.id == match.competitor_2_id,
-                    )
+        if competitor_winner is None:
+            logging.error(f'Competitor with name {name} not found.')
+            raise ValueError(f'Competitor with name {name} not found.')
+
+        competitor_loser = (
+            session.query(Competitor)
+            .filter(Competitor.name != name)
+            .filter(
+                or_(
+                    Competitor.id == match.competitor_1_id
+                    if match.competitor_1_id
+                    else False,
+                    Competitor.id == match.competitor_2_id
+                    if match.competitor_2_id
+                    else False,
                 )
-                .one()
             )
-        except NoResultFound:
+            .one_or_none()
+        )
+
+        if competitor_loser is None:
             session.rollback()
+            logging.error('Competitor not found or match is not valid.')
             raise ValueError('Competitor not found or match is not valid')
 
+        competitor_loser.status = False
         competitor_winner.won = True
         competitor_loser.won = False
 

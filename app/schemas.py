@@ -45,3 +45,7 @@ class MatchTournamentRound(BaseModel):
 
 class MatchTournamentSchema(BaseModel):
     rounds: List[MatchTournamentRound]
+
+
+class WinnerRegistrationSchema(BaseModel):
+    name: str
