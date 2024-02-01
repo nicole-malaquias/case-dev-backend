@@ -1,3 +1,4 @@
+import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -9,7 +10,10 @@ from app.schemas import (
     CompetitorSchema,
     TournamentSchema,
     TournamentSchemaResponse,
+    WinnerRegistrationSchema,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix='', tags=['/'])
 
@@ -21,19 +25,20 @@ Session = Annotated[Session, Depends(get_session)]
 )
 def create_tournament(tournament: TournamentSchema, session: Session):
     """
-    Cria um torneio
+    Creates a new tournament.
 
-    - **name**: Nome do torneio
-    - **date_start**: Data de início do torneio
-    - **date_end**: Data de término do torneio
+    Parameters:
+        - tournament: Tournament data (TournamentSchema).
+        - session: SQLAlchemy session.
 
+    Returns:
+        The created tournament.
     """
-    new_tourament = Tournament.create_tournament(**tournament.dict())
-    session.add(new_tourament)
-    session.commit()
-    session.refresh(new_tourament)
 
-    return new_tourament
+    new_tournament = Tournament.create_tournament(
+        session=session, **tournament.dict()
+    )
+    return new_tournament
 
 
 @router.post('/tournament/{tournament_id}/competitor', status_code=201)
@@ -41,11 +46,11 @@ def register_competitors(
     tournament_id: int, competitor: CompetitorSchema, session: Session
 ):
     """
-    Registra competidores em um torneio
+    Registers competitors in a tournament.
 
     Parameters:
-        - tournament_id: O ID do torneio.
-        - names: [string].
+        - tournament_id: The ID of the tournament.
+        - names: List of competitor names.
     """
     try:
         Competitor.create_competitor(
@@ -61,17 +66,50 @@ def register_competitors(
 @router.get('/tournament/{tournament_id}/match', status_code=201)
 def get_match_list(tournament_id: int, session: Session):
     """
-    Obtém a lista de partidas para um torneio específico.
+    Gets the list of matches for a specific tournament.
 
     Parameters:
-        - tournament_id: O ID do torneio.
-        - session: Sessão do SQLAlchemy.
+        - tournament_id: The ID of the tournament.
+        - session: SQLAlchemy session.
 
     Returns:
-        Um dicionário contendo informações sobre as partidas.
+        A dictionary containing information about the matches.
     """
-    Match.create_match(tournament_id, session)
+    try:
+        Match.create_match(tournament_id, session)
 
-    matches_info = Match.list_matches(tournament_id, session)
+        matches_info = Match.list_matches(tournament_id, session)
 
-    return matches_info
+        return matches_info
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.post('/tournament/{tournament_id}/match/{match_id}', status_code=201)
+def put_winner_for_match(
+    tournament_id: int,
+    match_id: int,
+    winner: WinnerRegistrationSchema,
+    session: Session,
+):
+    """
+    Sets the winner of a match in a specific tournament.
+
+    Parameters:
+        - tournament_id: The ID of the tournament.
+        - match_id: The ID of the match.
+        - winner: Winner data (WinnerRegistrationSchema).
+        - session: SQLAlchemy session.
+
+    Returns:
+        A dictionary containing information about the matches.
+    """
+    try:
+        winner_data = winner.dict()
+        match_instance = Match()
+        match_instance.set_winner(match_id, winner_data, session)
+
+        success_message = f'Winner successfully updated for match {match_id}'
+        return {'message': success_message, 'matches_info': match_instance}
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=str(e))

@@ -112,28 +112,6 @@ def test_get_match_list_with_two_competitors(client, session):
     assert response.status_code == 201
 
 
-def test_get_match_list_with_two_competitors1(client, session):
-
-    payload = {
-        'name': 'Torneio de Exemplo',
-        'date_start': '2024-01-29T12:00:00',
-        'date_end': '2024-02-05T18:00:00',
-    }
-
-    response = client.post('/tournament', json=payload)
-    tournament_id = response.json().get('id', '')
-    competitor_payload = {
-        'names': ['Competitor1', 'Competitor2'],
-    }
-    response = client.post(
-        f'/tournament/{tournament_id}/competitor', json=competitor_payload
-    )
-
-    response = client.get(f'/tournament/{tournament_id}/match')
-
-    assert response.status_code == 201
-
-
 def test_create_tournament_and_register_odd_number_of_comp_get_match_list(
     client, session
 ):
@@ -154,32 +132,6 @@ def test_create_tournament_and_register_odd_number_of_comp_get_match_list(
             'Competitor3',
             'Competitor4',
             'Competitor5',
-        ],
-    }
-    competitors_response = client.post(
-        f'/tournament/{tournament_id}/competitor', json=competitors_payload
-    )
-
-    assert competitors_response.status_code == 201
-
-
-def test_create_tournament_and_register_odd_number_of_comp_get_match_list1(
-    client, session
-):
-    tournament_payload = {
-        'name': 'Torneio de Exemplo',
-        'date_start': '2024-01-29T12:00:00',
-        'date_end': '2024-02-05T18:00:00',
-    }
-    tournament_response = client.post('/tournament', json=tournament_payload)
-    tournament_id = tournament_response.json().get('id', '')
-
-    assert tournament_response.status_code == 201
-
-    competitors_payload = {
-        'names': [
-            'Competitor1',
-            'Competitor2',
         ],
     }
     competitors_response = client.post(
@@ -215,3 +167,19 @@ def test_create_match_with_odd_number_of_competitors(client, session):
     matches_response = client.get(f'/tournament/{tournament_id}/match')
 
     assert matches_response.status_code == 201
+
+
+def test_get_match_list_no_matches(client, session):
+
+    response = client.get('/tournament/999/match')
+
+    assert response.status_code == 404
+
+    assert response.json() == {'detail': 'Tournament with ID 999 not found.'}
+
+
+def test_put_winner_for_match_nonexistent_tournament(client, session):
+
+    response = client.post('/tournament/999/match/1', json={'name': 'winner'})
+
+    assert response.status_code == 404
