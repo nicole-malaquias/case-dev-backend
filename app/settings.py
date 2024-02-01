@@ -1,3 +1,5 @@
+from logging import INFO, StreamHandler, basicConfig
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -7,3 +9,13 @@ class Settings(BaseSettings):
     )
 
     DATABASE_URL: str
+
+
+logger_config = {
+    'level': INFO,
+    'encoding': 'utf-8',
+    'format': '%(asctime)s %(levelname)s: %(message)s',
+    'handlers': [StreamHandler()],
+}
+
+basicConfig(**logger_config)
