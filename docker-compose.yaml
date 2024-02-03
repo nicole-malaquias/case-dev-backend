@@ -12,17 +12,19 @@ services:
     ports:
       - "5432:5432"
 
-  app:
-    image: app
-    build:
-      context: .
-      dockerfile: Dockerfile
-    ports:
-      - "8000:8000"
-    depends_on:
-      - app_database
-    environment:
-      DATABASE_URL: postgresql://app_user:app_password@app_database:5432/app_db
+  # app:
+  #   image: app
+  #   build:
+  #     context: .
+  #     dockerfile: dockerfile
+  #   ports:
+  #     - "8000:8000"
+  #   depends_on:
+  #     - app_database
+  #   environment:
+  #     DATABASE_URL: postgresql://app_user:app_password@app_database:5432/app_db
+  #   volumes:
+  #     - ./app:/app/app
 
 volumes:
   pgdata:

@@ -62,12 +62,17 @@ class Tournament(Base):
         Returns:
             The created tournament.
         """
+        try:
+            new_tournament = cls(**kwargs)
 
-        new_tournament = cls(**kwargs)
-        session.add(new_tournament)
-        session.commit()
-        logger.info('Tournament inserted in the bank.')
-        return new_tournament
+            session.add(new_tournament)
+            session.commit()
+            logger.info('Tournament inserted in the bank.')
+            return new_tournament
+
+        except Exception as e:
+            print('##' * 200)
+            print(e)
 
 
 class Competitor(Base):
@@ -228,8 +233,10 @@ class Match(Base):
 
         if matches and matches[0].state == STATUS_PENDING:
             return
-
-        round = len(matches) + 1
+        if matches:
+            round = matches[0].round + 1
+        else:
+            round = 1
         logging.info('Start creating matches for group 1 and 2.')
         cls._create_matches_for_group(
             session, tournament_id, competitors_group_1, round
@@ -358,6 +365,7 @@ class Match(Base):
                 )
 
             dic = {}
+
             for match in matches:
                 if f'Round {match.round}' not in dic:
                     dic[f'Round {match.round}'] = []
