@@ -34,11 +34,14 @@ def create_tournament(tournament: TournamentSchema, session: Session):
     Returns:
         The created tournament.
     """
+    try:
+        new_tournament = Tournament.create_tournament(
+            session=session, **tournament.dict()
+        )
 
-    new_tournament = Tournament.create_tournament(
-        session=session, **tournament.dict()
-    )
-    return new_tournament
+        return new_tournament
+    except Exception as e:
+        return HTTPException(status_code=500, detail=str(e))
 
 
 @router.post('/tournament/{tournament_id}/competitor', status_code=201)
