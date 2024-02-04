@@ -57,7 +57,7 @@ def register_competitors(
         - names: List of competitor names.
     """
     try:
-        Competitor.create_competitor(
+        Competitor.create_competitors(
             names=competitor.names,
             tournament_id=tournament_id,
             session=session,

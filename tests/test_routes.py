@@ -35,6 +35,28 @@ def test_create_tournament_failure_invalid_dates(client, session):
     assert response.status_code == 422
 
 
+def test_register_competitor_after_tournament_start(client, session):
+    ...
+    payload = {
+        'name': 'Example Tournament',
+        'date_start': '2024-01-29T12:00:00',
+        'date_end': '2024-02-05T18:00:00',
+    }
+    tournamnet = client.post('/tournament', json=payload)
+    tournament_id = tournamnet.json().get('id', '')
+    competitor_payload = {
+        'names': ['Competitor1', 'Competitor2', 'Competitor3']
+    }
+    client.post(
+        f'/tournament/{tournament_id}/competitor', json=competitor_payload
+    )
+    response = client.post(
+        f'/tournament/{tournament_id}/competitor', json=competitor_payload
+    )
+    print('\n' * 5)
+    print(response.json())
+
+
 def test_register_competitors_tournament_not_found(client, session):
     """
     Test registering competitors for a nonexistent tournament.
@@ -71,6 +93,7 @@ def test_register_competitors_single_name_failure(client, session):
     }
     response = client.post('/tournament', json=payload)
     tournament_id = response.json().get('id', '')
+
     competitor_payload = {'names': ['SingleName']}
     response = client.post(
         f'/tournament/{tournament_id}/competitor', json=competitor_payload
@@ -230,7 +253,8 @@ def test_set_winner_for_nonexistent_tournament(client, session):
     - Checks if the response status code is 404 (Not Found).
     """
     response = client.post('/tournament/999/match/1', json={'name': 'winner'})
-
+    print('\n' * 5)
+    print(response.json())
     assert response.status_code == 404
 
 
@@ -594,4 +618,3 @@ def test_get_top4_with_two_competitor(client, session):
         f'/tournament/{tournament_id}/result'
     )
     assert response_get_tournament_result.status_code == 201
-

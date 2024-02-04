@@ -37,7 +37,7 @@ def test_create_competitor_invalid_tournament_id(session: Session):
     competitor_names = ['Competitor1', 'Competitor2']
 
     with pytest.raises(ValueError) as exc_info:
-        Competitor.create_competitor(
+        Competitor.create_competitors(
             competitor_names, invalid_tournament_id, session
         )
 

@@ -49,7 +49,10 @@ class Tournament(Base):
     date_end = Column(DateTime, nullable=False)
     competitors = relationship('Competitor', back_populates='tournament')
     number_matches = Column(Integer, nullable=True)
-
+    is_active = Column(
+        Boolean,
+        default=False,
+    )
 
     @classmethod
     def create_tournament(cls, session: Session, **kwargs):
@@ -96,40 +99,44 @@ class Competitor(Base):
         return math.ceil(math.log2(number_competitors))
 
     @classmethod
-    def create_competitor(cls, names, tournament_id, session):
+    def create_competitors(cls, names, tournament_id, session):
         """
-        this function creates a competitor and validates whether the ID
-        of the tournament he wants to participate in exists and adds him
-        to a group that is analogous to championship brackets
+        Creates competitors and validates that the tournament ID
+        they are joining they want to participate exists.
+        Adds competitors to a group similar to the brackets
+        of the championship.
         """
         existing_tournament = session.query(Tournament).get(tournament_id)
         if existing_tournament is None:
             raise ValueError(f'Tournament with ID {tournament_id} not found.')
-        competitors = []
+
+        if existing_tournament.is_active:
+            raise ValueError(
+                'This championship has already started; adding new competitors is not allowed.'  # noqa
+            )
+
         if len(names) < 2:
             raise ValueError('A tournament must have at least 2 competitors.')
+
         random.shuffle(names)
-        for ind in range(0, len(names)):
-            if ind % 2 == 0:
-                estado = GROUP_1
-            else:
-                estado = GROUP_2
+        competitors = []
+
+        for ind, name in enumerate(names):
+            group = GROUP_1 if ind % 2 == 0 else GROUP_2
+            competitor_name = f'{name} -{random.randint(1, 100)}'
             new_competitor = cls(
-                name=f'{names[ind]} -{random.randint(1, 100)}',
+                name=competitor_name,
                 tournament_id=tournament_id,
-                group=estado,
+                group=group,
             )
             competitors.append(new_competitor)
 
-        number_matches = cls._number_of_matches(len(names))
-        session.query(Tournament).get(
-            tournament_id
-        ).number_matches = number_matches
-
         session.add_all(competitors)
         session.commit()
+        number_matches = cls._number_of_matches(len(names))
+        existing_tournament.number_matches = number_matches
+        existing_tournament.is_active = True
         logger.info('Competitors inserted in the bank.')
-        return
 
 
 class Match(Base):
