@@ -217,7 +217,7 @@ def test_get_match_list_for_nonexistent_tournament(client, session):
     """
     response = client.get('/tournament/999/match')
 
-    assert response.status_code == 404
+    assert response.status_code == 400
 
     assert response.json() == {'detail': 'Tournament with ID 999 not found.'}
 
@@ -529,3 +529,69 @@ def test_get_top4(client, session):
         matches_round_3[0]['id'],
         matches_round_3[0]['competitor_2'],
     )
+
+
+def test_get_top4_with_two_competitor(client, session):
+    """
+    Test the retrieval of the top 4 competitors
+      in a tournament with two competitors.
+
+    Steps:
+    1. Create a tournament.
+    2. Add two competitors to the tournament.
+    3. Retrieve the matches of the tournament.
+    4. Post the result of the first match.
+    5. Retrieve the matches again.
+    6. Retrieve the results of the tournament.
+
+    Verify if all steps are successful and if the status codes are correct.
+    """
+    # Step 1: Create Tournament
+    tournament_payload = {
+        'name': 'Example Tournament',
+        'date_start': '2024-01-29T12:00:00',
+        'date_end': '2024-02-05T18:00:00',
+    }
+    response_create_tournament = client.post(
+        '/tournament', json=tournament_payload
+    )
+    assert response_create_tournament.status_code == 201
+    tournament_id = response_create_tournament.json().get('id')
+
+    # Step 2: Add Competitors
+    competitor_payload = {'names': ['Competitor1', 'Competitor2']}
+    response_add_competitors = client.post(
+        f'/tournament/{tournament_id}/competitor', json=competitor_payload
+    )
+    assert response_add_competitors.status_code == 201
+
+    # Step 3: Retrieve Matches
+    response_get_matches = client.get(f'/tournament/{tournament_id}/match')
+    assert response_get_matches.status_code == 201
+    matches_round_1 = response_get_matches.json()
+
+    # Verify if there are available matches
+    assert 'Round 2' in matches_round_1
+    assert matches_round_1['Round 2']
+
+    # Step 4: Post Match Result
+    winner_name = matches_round_1['Round 2'][0]['competitor_1']
+    match_id = matches_round_1['Round 2'][0]['id']
+    response_post_match_result = client.post(
+        f'/tournament/{tournament_id}/match/{match_id}',
+        json={'name': winner_name},
+    )
+    assert response_post_match_result.status_code == 201
+
+    # Step 5: Retrieve Matches Again
+    response_get_matches_again = client.get(
+        f'/tournament/{tournament_id}/match'
+    )
+    assert response_get_matches_again.status_code == 201
+
+    # Step 6: Retrieve Tournament Results
+    response_get_tournament_result = client.get(
+        f'/tournament/{tournament_id}/result'
+    )
+    assert response_get_tournament_result.status_code == 201
+

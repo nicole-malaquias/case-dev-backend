@@ -50,6 +50,7 @@ class Tournament(Base):
     competitors = relationship('Competitor', back_populates='tournament')
     number_matches = Column(Integer, nullable=True)
 
+
     @classmethod
     def create_tournament(cls, session: Session, **kwargs):
         """
@@ -279,8 +280,14 @@ class Match(Base):
         """
 
         total_atual = matches[0].round if matches else 0
+
         total_experado = existing_tournament.number_matches + 1
         total = total_experado - total_atual
+
+        # caso exista só duas pessoas no torneio
+        if existing_tournament.number_matches == 1 and total_atual == 0:
+            return True
+
         if total == 1:
             return True
         if total_experado == 1 and total_atual == 0:
@@ -316,6 +323,7 @@ class Match(Base):
 
             session.add(finalists)
             session.commit()
+            logging.info('Final match created.')
 
     def _create_matches_for_group(
         session: Session,
@@ -458,7 +466,21 @@ class Match(Base):
         Fetches the finalists and determines the winner, 2nd place,
         fetches the semifinalists and determines the 3rd and 4th places.
         """
+
         championship = session.query(Tournament).get(tournament)
+        competitors = (
+            session.query(Competitor)
+            .filter(Competitor.tournament_id == tournament)
+            .all()
+        )
+        if len(competitors) == 2 and championship.number_matches == 1:
+            result = {}
+            for competitor in competitors:
+                if competitor.status:
+                    result['first'] = competitor.name.split(' ')[0]
+                else:
+                    result['second'] = competitor.name.split(' ')[0]
+            return result
 
         finalists = (
             session.query(Match)
@@ -468,8 +490,7 @@ class Match(Base):
             )
             .all()
         )
-
-        winner = finalists[0].winner.name
+        winner = finalists[0].winner.name.split()
         second_place = (
             finalists[0].competitor_2.name
             if finalists[0].competitor_1.name == winner
@@ -498,7 +519,7 @@ class Match(Base):
             'third_place': third_place_winner,
             'fourth_place': fourth_place,
         }
-        return result
+        return 'result'
 
     @staticmethod
     def _create_consolation_match(
