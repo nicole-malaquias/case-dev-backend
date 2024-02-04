@@ -35,6 +35,7 @@ def create_tournament(tournament: TournamentSchema, session: Session):
         The created tournament.
     """
     try:
+
         new_tournament = Tournament.create_tournament(
             session=session, **tournament.dict()
         )
@@ -79,6 +80,7 @@ def get_match_list(tournament_id: int, session: Session):
         A dictionary containing information about the matches.
     """
     try:
+
         Match.create_match(tournament_id, session)
 
         matches_info = Match.list_matches(tournament_id, session)
@@ -114,5 +116,24 @@ def put_winner_for_match(
 
         success_message = f'Winner successfully updated for match {match_id}'
         return {'message': success_message, 'matches_info': match_instance}
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.get('/tournament/{tournament_id}/result', status_code=201)
+def get_top4(tournament: int, session: Session):
+    """
+    Gets the top 4 competitors in a specific tournament.
+
+    Parameters:
+        - tournament_id: The ID of the tournament.
+        - session: SQLAlchemy session.
+
+    Returns:
+        A dictionary containing information about the top 4 competitors.
+    """
+    try:
+        top4 = Match.get_top4(tournament, session)
+        return top4
     except Exception as e:
         raise HTTPException(status_code=404, detail=str(e))

@@ -1,7 +1,7 @@
 from app.models import Competitor, Match, Tournament
 
 
-def test_create_tournament_success(client, session):
+def create_test_tournament(client, session):
     payload = {
         'name': 'Torneio de Exemplo',
         'date_start': '2024-01-29T12:00:00',
@@ -287,3 +287,245 @@ def test_set_winner_for_match_successfully(client, session):
     )
 
     assert response.status_code == 201
+
+
+def test_winner_consolation_match(client, session):
+
+    tournament_payload = {
+        'name': 'Tournament Teste Consolation',
+        'date_start': '2024-01-29T12:00:00',
+        'date_end': '2024-02-05T18:00:00',
+        'number_matches': 30,
+    }
+
+    new_tournament = Tournament(**tournament_payload)
+    session.add(new_tournament)
+    session.commit()
+
+    for i in range(0, 4):
+        if i % 2 == 0:
+            competitor = Competitor(
+                name=f'Competitor{i}',
+                tournament_id=new_tournament.id,
+                group='group_1',
+            )
+            session.add(competitor)
+            session.commit()
+        else:
+            competitor = Competitor(
+                name=f'Competitor{i}',
+                tournament_id=new_tournament.id,
+                group='group_2',
+            )
+            session.add(competitor)
+            session.commit()
+
+    competitors = (
+        session.query(Competitor)
+        .filter_by(tournament_id=new_tournament.id)
+        .all()
+    )
+
+    first_match = Match(
+        competitor_1_id=competitors[0].id,
+        competitor_2_id=competitors[1].id,
+        tournament_id=new_tournament.id,
+        round=1,
+        winner_id=competitors[0].id,
+        state='finished',
+    )
+
+    secont_match = Match(
+        competitor_1_id=competitors[2].id,
+        competitor_2_id=competitors[3].id,
+        tournament_id=new_tournament.id,
+        round=1,
+        winner_id=competitors[2].id,
+        state='finished',
+    )
+
+    session.add_all([first_match, secont_match])
+    session.commit()
+
+    response = client.get(
+        f'/tournament/{new_tournament.id}/match/',
+    )
+
+    assert response.status_code == 201
+
+
+def test_create_consolation_match(client, session):
+
+    tournament_payload = {
+        'name': 'Example Tournament',
+        'date_start': '2024-01-29T12:00:00',
+        'date_end': '2024-02-05T18:00:00',
+    }
+    tournament_response = client.post('/tournament', json=tournament_payload)
+    tournament_id = tournament_response.json().get('id', '')
+
+    competitor_payload = {
+        'names': ['Competitor1', 'Competitor2', 'Competitor3', 'Competitor4']
+    }
+    client.post(
+        f'/tournament/{tournament_id}/competitor', json=competitor_payload
+    )
+
+    response = client.get(f'/tournament/{tournament_id}/match')
+
+    rodada_1_winner = response.json()['Round 1'][0]['competitor_1']
+    rodada_1_id = response.json()['Round 1'][0]['id']
+
+    rodada_2_winner = response.json()['Round 1'][1]['competitor_2']
+    rodada_2_id = response.json()['Round 1'][1]['id']
+
+    response_rodada_1 = client.post(
+        f'/tournament/{tournament_id}/match/{rodada_1_id}',
+        json={'name': rodada_1_winner},
+    )
+    assert response_rodada_1.status_code == 201
+
+    response_rodada_2 = client.post(
+        f'/tournament/{tournament_id}/match/{rodada_2_id}',
+        json={'name': rodada_2_winner},
+    )
+    assert response_rodada_2.status_code == 201
+
+    response = client.get(f'/tournament/{tournament_id}/match')
+
+    assert response.status_code == 201
+
+
+def test_get_to_generate_the_final_list_and_not_create_unnecessary(
+    client, session
+):
+    tournament_payload = {
+        'name': 'Example Tournament',
+        'date_start': '2024-01-29T12:00:00',
+        'date_end': '2024-02-05T18:00:00',
+    }
+    tournament_response = client.post('/tournament', json=tournament_payload)
+    tournament_id = tournament_response.json().get('id', '')
+
+    competitor_payload = {
+        'names': ['Competitor1', 'Competitor2', 'Competitor3', 'Competitor4']
+    }
+    client.post(
+        f'/tournament/{tournament_id}/competitor', json=competitor_payload
+    )
+
+    response = client.get(f'/tournament/{tournament_id}/match')
+
+    rodada_1_winner = response.json()['Round 1'][0]['competitor_1']
+    rodada_1_id = response.json()['Round 1'][0]['id']
+
+    rodada_2_winner = response.json()['Round 1'][1]['competitor_2']
+    rodada_2_id = response.json()['Round 1'][1]['id']
+
+    response_rodada_1 = client.post(
+        f'/tournament/{tournament_id}/match/{rodada_1_id}',
+        json={'name': rodada_1_winner},
+    )
+    assert response_rodada_1.status_code == 201
+
+    response_rodada_2 = client.post(
+        f'/tournament/{tournament_id}/match/{rodada_2_id}',
+        json={'name': rodada_2_winner},
+    )
+    assert response_rodada_2.status_code == 201
+
+    response = client.get(f'/tournament/{tournament_id}/match')
+
+    assert response.status_code == 201
+
+    response = client.get(f'/tournament/{tournament_id}/match')
+
+    rodada_consoletion = response.json()['Round 2'][0]['competitor_2']
+    rodada_id = response.json()['Round 2'][0]['id']
+
+    client.post(
+        f'/tournament/{tournament_id}/match/{rodada_id}',
+        json={'name': rodada_consoletion},
+    )
+
+    client.get(f'/tournament/{tournament_id}/match')
+
+    rodada_winner = response.json()['Round 3'][0]['competitor_2']
+    rodada_id = response.json()['Round 3'][0]['id']
+    client.post(
+        f'/tournament/{tournament_id}/match/{rodada_id}',
+        json={'name': rodada_winner},
+    )
+    response = client.get(f'/tournament/{tournament_id}/match')
+    response = client.get(f'/tournament/{tournament_id}/match')
+    assert len(response.json()) == 3
+
+
+def create_tournament(client, session, tournament_payload):
+    response = client.post('/tournament', json=tournament_payload)
+    return response.json().get('id', '')
+
+
+def create_competitors(client, tournament_id, competitor_payload):
+    client.post(
+        f'/tournament/{tournament_id}/competitor', json=competitor_payload
+    )
+
+
+def create_match(client, tournament_id, match_id, winner_name):
+    response = client.post(
+        f'/tournament/{tournament_id}/match/{match_id}',
+        json={'name': winner_name},
+    )
+    assert response.status_code == 201
+
+
+def get_matches(client, tournament_id):
+    response = client.get(f'/tournament/{tournament_id}/match')
+    assert response.status_code == 201
+    return response.json()
+
+
+def test_get_top4(client, session):
+    tournament_payload = {
+        'name': 'Example Tournament',
+        'date_start': '2024-01-29T12:00:00',
+        'date_end': '2024-02-05T18:00:00',
+    }
+    competitor_payload = {
+        'names': ['Competitor1', 'Competitor2', 'Competitor3', 'Competitor4']
+    }
+
+    tournament_id = create_tournament(client, session, tournament_payload)
+    create_competitors(client, tournament_id, competitor_payload)
+
+    matches_round_1 = get_matches(client, tournament_id)['Round 1']
+
+    create_match(
+        client,
+        tournament_id,
+        matches_round_1[0]['id'],
+        matches_round_1[0]['competitor_1'],
+    )
+    create_match(
+        client,
+        tournament_id,
+        matches_round_1[1]['id'],
+        matches_round_1[1]['competitor_2'],
+    )
+
+    matches_round_2 = get_matches(client, tournament_id)['Round 2']
+    create_match(
+        client,
+        tournament_id,
+        matches_round_2[0]['id'],
+        matches_round_2[0]['competitor_2'],
+    )
+
+    matches_round_3 = get_matches(client, tournament_id)['Round 3']
+    create_match(
+        client,
+        tournament_id,
+        matches_round_3[0]['id'],
+        matches_round_3[0]['competitor_2'],
+    )

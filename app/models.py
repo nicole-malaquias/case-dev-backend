@@ -62,17 +62,12 @@ class Tournament(Base):
         Returns:
             The created tournament.
         """
-        try:
-            new_tournament = cls(**kwargs)
 
-            session.add(new_tournament)
-            session.commit()
-            logger.info('Tournament inserted in the bank.')
-            return new_tournament
-
-        except Exception as e:
-            print('##' * 200)
-            print(e)
+        new_tournament = cls(**kwargs)
+        session.add(new_tournament)
+        session.commit()
+        logger.info('Tournament inserted in the bank.')
+        return new_tournament
 
 
 class Competitor(Base):
@@ -97,11 +92,6 @@ class Competitor(Base):
 
     @classmethod
     def _number_of_matches(cls, number_competitors):
-        if number_competitors < 2:
-            raise ValueError(
-                'O número de participantes deve ser pelo menos 2.'
-            )
-
         return math.ceil(math.log2(number_competitors))
 
     @classmethod
@@ -111,11 +101,6 @@ class Competitor(Base):
         of the tournament he wants to participate in exists and adds him
         to a group that is analogous to championship brackets
         """
-        if tournament_id is None:
-            raise ValueError(
-                " The 'tournament_id' is mandatory when creating competitors."
-            )
-
         existing_tournament = session.query(Tournament).get(tournament_id)
         if existing_tournament is None:
             raise ValueError(f'Tournament with ID {tournament_id} not found.')
@@ -129,7 +114,7 @@ class Competitor(Base):
             else:
                 estado = GROUP_2
             new_competitor = cls(
-                name=names[ind],
+                name=f'{names[ind]} -{random.randint(1, 100)}',
                 tournament_id=tournament_id,
                 group=estado,
             )
@@ -175,8 +160,8 @@ class Match(Base):
         Enum('pending', 'finished', name='match_state'), nullable=False
     )
 
-    @classmethod
-    def _set_pair(cls, names):
+    @staticmethod
+    def _set_pair(names):
         """
         This method sets the pairs for the matches.
         If a list with an odd value arrives,
@@ -220,34 +205,56 @@ class Match(Base):
         competitors_group_2 = cls._get_competitors_by_group(
             session, tournament_id, GROUP_2
         )
-        logging.info('Verifying if the final match should be created.')
-        if cls._should_create_final_match(existing_tournament, matches):
+        is_consolation_match = cls._should_create_consolation(
+            existing_tournament.number_matches, matches
+        )
+        logging.info('Verifying if the consolation match should be created.')
+        if is_consolation_match:
+            cls._create_consolation_match(
+                tournament_id, existing_tournament.number_matches, session
+            )
+            return
 
+        logging.info('Verifying if the final match should be created.')
+        is_final_match = cls._should_create_final_match(
+            existing_tournament, matches
+        )
+
+        if is_final_match:
             cls._create_final_match(
                 session, tournament_id, existing_tournament.number_matches
             )
             return
-        logging.info('Its not necessary create the match')
-        if matches and matches[0].round == existing_tournament.number_matches:
+
+        if (
+            matches
+            and matches[0].round == existing_tournament.number_matches + 1
+        ):
+            logging.info('Its not necessary create the match')
             return
 
         if matches and matches[0].state == STATUS_PENDING:
+            logging.info('Its not necessary create the match')
+
             return
         if matches:
             round = matches[0].round + 1
         else:
             round = 1
         logging.info('Start creating matches for group 1 and 2.')
+
+        pairs_group_1 = cls._set_pair(competitors_group_1)
+        pairs_group_2 = cls._set_pair(competitors_group_2)
         cls._create_matches_for_group(
-            session, tournament_id, competitors_group_1, round
+            session, tournament_id, pairs_group_1, round
         )
         cls._create_matches_for_group(
-            session, tournament_id, competitors_group_2, round
+            session, tournament_id, pairs_group_2, round
         )
 
-    @classmethod
+    @staticmethod
     def _get_competitors_by_group(
-        cls, session: Session, tournament_id: int, group: str
+        session: Session, tournament_id: int, group: str
     ):
         """
         This method gets the competitors by group.
@@ -264,14 +271,15 @@ class Match(Base):
             .all()
         )
 
-    @classmethod
-    def _should_create_final_match(cls, existing_tournament, matches):
+    @staticmethod
+    def _should_create_final_match(existing_tournament, matches):
+
         """
         This method verifies if the final match should be created.
         """
-        total_experado = existing_tournament.number_matches
-        total_atual = len(matches)
 
+        total_atual = matches[0].round if matches else 0
+        total_experado = existing_tournament.number_matches + 1
         total = total_experado - total_atual
         if total == 1:
             return True
@@ -280,9 +288,9 @@ class Match(Base):
 
         return False
 
-    @classmethod
+    @staticmethod
     def _create_final_match(
-        cls, session: Session, tournament_id: int, last_round: int
+        session: Session, tournament_id: int, last_round: int
     ):
         """
         This method creates the final match.
@@ -296,34 +304,31 @@ class Match(Base):
             .limit(2)
             .all()
         )
+
         if len(finalists) == 2:
-            new_match = cls(
+            finalists = Match(
                 competitor_1_id=finalists[0].id,
                 competitor_2_id=finalists[1].id,
                 tournament_id=tournament_id,
-                round=last_round,
+                round=last_round + 1,
                 state=STATUS_PENDING,
             )
 
-            session.add(new_match)
+            session.add(finalists)
             session.commit()
 
-    @classmethod
     def _create_matches_for_group(
-        cls,
         session: Session,
         tournament_id: int,
-        competitors: list[Competitor],
+        pairs: list[Competitor],
         round: int,
     ):
         """
         This method creates the matches for a group.
         """
-        pairs = cls._set_pair(competitors)
-
         for pair in pairs:
             if len(pair) == 2:
-                new_match = cls(
+                new_match = Match(
                     competitor_1_id=pair[0].id,
                     competitor_2_id=pair[1].id,
                     tournament_id=tournament_id,
@@ -332,7 +337,7 @@ class Match(Base):
                 )
                 session.add(new_match)
             else:
-                new_match = cls(
+                new_match = Match(
                     competitor_1_id=pair[0].id,
                     competitor_2_id=None,
                     tournament_id=tournament_id,
@@ -391,11 +396,13 @@ class Match(Base):
             )
             raise ValueError(str(e))
 
+    @classmethod
     def set_winner(cls, match_id: int, name: str, session: Session):
         """
         This method sets the winner of a match and updates the state of the
         competitors.
         """
+
         logging.info('Setting the winner of the match.')
         name = name.get('name', '')
         match = session.query(Match).get(match_id)
@@ -404,7 +411,9 @@ class Match(Base):
             raise ValueError(f'Match with ID {match_id} not found.')
 
         competitor_winner = (
-            session.query(Competitor).filter(Competitor.name == name).first()
+            session.query(Competitor)
+            .filter(Competitor.name == name, Match.id == match_id)
+            .first()
         )
 
         if competitor_winner is None:
@@ -442,3 +451,135 @@ class Match(Base):
         session.commit()
 
         return match
+
+    @classmethod
+    def get_top4(cls, tournament: int, session: Session):
+        """
+        Fetches the finalists and determines the winner, 2nd place,
+        fetches the semifinalists and determines the 3rd and 4th places.
+        """
+        championship = session.query(Tournament).get(tournament)
+
+        finalists = (
+            session.query(Match)
+            .filter(
+                Match.tournament_id == tournament,
+                Match.round == championship.number_matches + 1,
+            )
+            .all()
+        )
+
+        winner = finalists[0].winner.name
+        second_place = (
+            finalists[0].competitor_2.name
+            if finalists[0].competitor_1.name == winner
+            else finalists[0].competitor_1.name
+        )
+
+        semi_finalists = (
+            session.query(Match)
+            .filter(
+                Match.tournament_id == tournament,
+                Match.round == championship.number_matches,
+            )
+            .all()
+        )
+
+        third_place_winner = semi_finalists[0].winner.name
+        fourth_place = (
+            semi_finalists[0].competitor_2.name
+            if semi_finalists[0].competitor_1.name == third_place_winner
+            else semi_finalists[0].competitor_1.name
+        )
+
+        result = {
+            'winner': winner,
+            'second_place': second_place,
+            'third_place': third_place_winner,
+            'fourth_place': fourth_place,
+        }
+        return result
+
+    @staticmethod
+    def _create_consolation_match(
+        tournament_id: int, last_round: int, session: Session
+    ):
+        """
+        Creates a consolation match for a tournament.
+
+        Args:
+            tournament_id (int): The ID of the tournament.
+            last_round (int): The last round number.
+            session (Session): The SQLAlchemy session.
+
+        """
+        penultimate_round = last_round - 1
+
+        # Verify if a consolation match should be created
+        is_consolation = (
+            session.query(Match)
+            .filter(
+                Match.tournament_id == tournament_id,
+                Match.round == last_round,
+            )
+            .all()
+        )
+        for match in is_consolation:
+            from pprint import pprint
+
+            pprint(vars(match))
+            if match.state == STATUS_PENDING:
+                return
+
+        if penultimate_round >= 1 and not is_consolation:
+            # Query matches from the last completed round
+            semi_finalists_matches = (
+                session.query(Match)
+                .filter(
+                    Match.tournament_id == tournament_id,
+                    Match.round == penultimate_round,
+                )
+                .all()
+            )
+
+            losers = []
+            for match in semi_finalists_matches:
+                competitor_1_id = match.competitor_1_id
+                competitor_2_id = match.competitor_2_id
+
+                if competitor_1_id is not None and competitor_2_id is not None:
+                    losers.append(
+                        competitor_1_id
+                        if match.winner_id == competitor_2_id
+                        else competitor_2_id
+                    )
+                elif competitor_1_id is not None:
+                    losers.append(competitor_1_id)
+                elif competitor_2_id is not None:
+                    losers.append(competitor_2_id)
+                else:
+                    pass
+            # Create a new match for the consolation semi-final
+
+            new_semi_final_match = Match(
+                competitor_1_id=losers[0],
+                competitor_2_id=losers[1],
+                tournament_id=tournament_id,
+                round=last_round,
+                state=STATUS_PENDING,
+            )
+            session.add(new_semi_final_match)
+            session.commit()
+            logging.info('Consolation match created.')
+
+    @staticmethod
+    def _should_create_consolation(total, matches):
+        """
+        This method verifies if a consolation match should be created.
+        """
+        if matches:
+            total_atual = matches[0].round
+            sub = total - total_atual
+            if sub == 1:
+                return True
+        return False
