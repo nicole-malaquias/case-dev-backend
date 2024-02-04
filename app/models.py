@@ -62,18 +62,12 @@ class Tournament(Base):
         Returns:
             The created tournament.
         """
-        try:
-            new_tournament = cls(**kwargs)
-            session.add(new_tournament)
-            session.commit()
-            logger.info('Tournament inserted in the bank.')
-            return new_tournament
 
-        except SQLAlchemyError as e:
-            session.rollback()  # Revert changes if an error occurs
-            error_message = f'Error creating tournament: {str(e)}'
-            logger.error(error_message)
-            return error_message
+        new_tournament = cls(**kwargs)
+        session.add(new_tournament)
+        session.commit()
+        logger.info('Tournament inserted in the bank.')
+        return new_tournament
 
 
 class Competitor(Base):
@@ -98,9 +92,6 @@ class Competitor(Base):
 
     @classmethod
     def _number_of_matches(cls, number_competitors):
-        if number_competitors < 2:
-            raise ValueError('The number of participants must be at least 2.')
-
         return math.ceil(math.log2(number_competitors))
 
     @classmethod
@@ -110,11 +101,6 @@ class Competitor(Base):
         of the tournament he wants to participate in exists and adds him
         to a group that is analogous to championship brackets
         """
-        if tournament_id is None:
-            raise ValueError(
-                " The 'tournament_id' is mandatory when creating competitors."
-            )
-
         existing_tournament = session.query(Tournament).get(tournament_id)
         if existing_tournament is None:
             raise ValueError(f'Tournament with ID {tournament_id} not found.')
@@ -233,13 +219,17 @@ class Match(Base):
         is_final_match = cls._should_create_final_match(
             existing_tournament, matches
         )
+
         if is_final_match:
             cls._create_final_match(
                 session, tournament_id, existing_tournament.number_matches
             )
             return
 
-        if matches and matches[0].round == existing_tournament.number_matches:
+        if (
+            matches
+            and matches[0].round == existing_tournament.number_matches + 1
+        ):
             logging.info('Its not necessary create the match')
             return
 
@@ -288,8 +278,8 @@ class Match(Base):
         This method verifies if the final match should be created.
         """
 
-        total_experado = existing_tournament.number_matches + 1
         total_atual = matches[0].round if matches else 0
+        total_experado = existing_tournament.number_matches + 1
         total = total_experado - total_atual
         if total == 1:
             return True
@@ -316,8 +306,7 @@ class Match(Base):
         )
 
         if len(finalists) == 2:
-
-            finalists = session(
+            finalists = Match(
                 competitor_1_id=finalists[0].id,
                 competitor_2_id=finalists[1].id,
                 tournament_id=tournament_id,
