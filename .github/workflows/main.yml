@@ -38,3 +38,16 @@ jobs:
 
       - name: Executar testes
         run: poetry run task test
+
+      - name: Verificar cobertura de código
+        run: |
+          poetry run coverage run -m pytest
+          coverage_threshold=90
+          actual_coverage=$(poetry run coverage report --fail-under=$coverage_threshold -m)
+
+          if [ $? -eq 0 ]; then
+            echo "Cobertura de código atende aos requisitos (${actual_coverage}%)"
+          else
+            echo "Erro: Cobertura de código abaixo do limite permitido (${actual_coverage}%)"
+            exit 1
+          fi
