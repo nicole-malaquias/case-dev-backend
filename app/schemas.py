@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import List, Optional
 
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, field_validator
 
 
 class TournamentSchema(BaseModel):
@@ -9,14 +9,13 @@ class TournamentSchema(BaseModel):
     date_start: datetime
     date_end: datetime
 
-    @validator('date_end', pre=True, always=True)
+    @field_validator('date_end')
     def validate_date_end(cls, v, values):
-
-        if 'date_start' in values:
+        if 'date_start' in values.data:
             data_dt1 = datetime.fromisoformat(str(v))
-            if data_dt1 < values['date_start']:
+            if data_dt1 < values.data['date_start']:
                 raise ValueError('date_end must be greater than date_start')
-            if data_dt1 == values['date_start']:
+            if data_dt1 == values.data['date_start']:
                 raise ValueError('date_end must be greater than date_start')
         return v
 

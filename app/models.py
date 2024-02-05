@@ -100,6 +100,9 @@ class Competitor(Base):
 
     @classmethod
     def _number_of_matches(cls, number_competitors):
+        """
+        This function calculates the number of matches for a tournament.
+        """
         return math.ceil(math.log2(number_competitors))
 
     @classmethod
@@ -110,7 +113,7 @@ class Competitor(Base):
         Adds competitors to a group similar to the brackets
         of the championship.
         """
-        existing_tournament = session.query(Tournament).get(tournament_id)
+        existing_tournament = session.get(Tournament, tournament_id)
         if existing_tournament is None:
             raise ValueError(f'Tournament with ID {tournament_id} not found.')
 
@@ -201,7 +204,7 @@ class Match(Base):
         """
 
         logging.info('Start creating matches.')
-        existing_tournament = session.query(Tournament).get(tournament_id)
+        existing_tournament = session.get(Tournament, tournament_id)
         existing_competitor = (
             session.query(Competitor)
             .filter(
@@ -437,7 +440,9 @@ class Match(Base):
             raise ValueError(str(e))
 
     @classmethod
-    def set_winner(cls, match_id: int, name: str, session: Session):
+    def set_winner(
+        cls, match_id: int, tournament_id: int, name: str, session: Session
+    ):   # noqa
         """
         This method sets the winner of a match and updates the state of the
         competitors.
@@ -446,7 +451,7 @@ class Match(Base):
         logging.info('Setting the winner of the match.')
         name = name.get('name', '')
 
-        match = session.query(Match).get(match_id)
+        match = session.get(Match, match_id)
 
         if match is None:
             logging.error(f'Match with ID {match_id} not found.')
@@ -454,7 +459,11 @@ class Match(Base):
 
         competitor_winner = (
             session.query(Competitor)
-            .filter(Competitor.name == name, Match.id == match_id)
+            .filter(
+                Competitor.name == name,
+                Match.id == match_id,
+                Competitor.tournament_id == tournament_id,
+            )
             .all()
         )
 
@@ -469,7 +478,7 @@ class Match(Base):
             competitor_winner = match.competitor_2
             competitor_loser = match.competitor_1
 
-        loser = session.query(Competitor).get(competitor_loser.id)
+        loser = session.get(Competitor, competitor_loser.id)
         if competitor_loser is None:
             session.rollback()
             logging.error('Competitor not found or match is not valid.')
@@ -490,13 +499,21 @@ class Match(Base):
         Fetches the finalists and determines the winner, 2nd place,
         fetches the semifinalists and determines the 3rd and 4th places.
         """
+        championship = session.get(Tournament, tournament)
+        total_rounds = (
+            championship.number_matches + 1
+            if championship.number_matches
+            else 0
+        )
+        if not total_rounds:
+            return 'The championship has not had any matches and has not concluded yet.'   # noqa
 
-        championship = session.query(Tournament).get(tournament)
         competitors = (
             session.query(Competitor)
             .filter(Competitor.tournament_id == tournament)
             .all()
         )
+
         finalists = (
             session.query(Match)
             .filter(
@@ -505,6 +522,9 @@ class Match(Base):
             )
             .order_by(desc(Match.round))
         )
+        if total_rounds != finalists[0].round:
+            return 'The championship is not over yet.'
+
         # if the championship has only two competitors and one match
         if len(competitors) == 2 and championship.number_matches == 1:
             result = {}
