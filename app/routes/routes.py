@@ -37,7 +37,7 @@ def create_tournament(tournament: TournamentSchema, session: Session):
     try:
 
         new_tournament = Tournament.create_tournament(
-            session=session, **tournament.dict()
+            session=session, **tournament.model_dump()
         )
 
         return new_tournament
@@ -111,9 +111,11 @@ def put_winner_for_match(
         A dictionary containing information about the matches.
     """
     try:
-        winner_data = winner.dict()
+        winner_data = winner.model_dump()
         match_instance = Match()
-        match_instance.set_winner(match_id, winner_data, session)
+        match_instance.set_winner(
+            match_id, tournament_id, winner_data, session
+        )
 
         success_message = f'Winner successfully updated for match {match_id}'
         return {'message': success_message, 'matches_info': match_instance}

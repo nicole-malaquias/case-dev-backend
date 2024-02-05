@@ -1,7 +1,7 @@
 from app.models import Competitor, Match, Tournament
 
 
-def create_test_tournament(client, session):
+def create_test_tournament(client):
     payload = {
         'name': 'Torneio de Exemplo',
         'date_start': '2024-01-29T12:00:00',
@@ -28,7 +28,7 @@ def create_tournament_get_id(client, name, date_start, date_end):
     return response.json().get('id')
 
 
-def test_create_tournament_failure_invalid_dates(client, session):
+def test_create_tournament_failure_invalid_dates(client):
     """
     Test creating a tournament with invalid date range.
 
@@ -45,7 +45,7 @@ def test_create_tournament_failure_invalid_dates(client, session):
     assert response.status_code == 422
 
 
-def test_register_competitor_after_tournament_start(client, session):
+def test_register_competitor_after_tournament_start(client):
     """
     Test registering competitors for a tournament after it has started.
     """
@@ -68,7 +68,7 @@ def test_register_competitor_after_tournament_start(client, session):
     assert response.status_code == 404
 
 
-def test_register_competitors_tournament_not_found(client, session):
+def test_register_competitors_tournament_not_found(client):
     """
     Test registering competitors for a nonexistent tournament.
 
@@ -88,7 +88,7 @@ def test_register_competitors_tournament_not_found(client, session):
     assert 'Tournament with ID' in response.json()['detail']
 
 
-def test_register_competitors_single_name_failure(client, session):
+def test_register_competitors_single_name_failure(client):
     """
     Test registering a single competitor for a tournament (failure).
 
@@ -117,7 +117,7 @@ def test_register_competitors_single_name_failure(client, session):
     )
 
 
-def test_register_competitors_success(client, session):
+def test_register_competitors_success(client):
     """
     Test successfully registering competitors for a tournament.
 
@@ -142,7 +142,7 @@ def test_register_competitors_success(client, session):
     assert response.json() is None
 
 
-def test_get_match_list_with_two_competitors(client, session):
+def test_get_match_list_with_two_competitors(client):
     """
     Test getting the match list for a tournament with two competitors.
 

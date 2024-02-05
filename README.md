@@ -290,3 +290,188 @@ jsonCopy code
 
 - **Status Code:** **`201 Created`**
 
+
+## Class Documentation
+
+
+
+
+### Tournament Class
+
+The Tournament class represents a sports tournament in the database. It is designed to store information about different tournaments, including their name, start and end dates, participating competitors, number of matches, and active status.
+
+### Attributes
+
+- `id` (int): Unique identifier for the tournament (Primary Key).
+- `name` (str): Name of the tournament.
+- `date_start` (datetime): Start date and time of the tournament.
+- `date_end` (datetime): End date and time of the tournament.
+- `competitors` (relationship): Relationship with the 'Competitor' class.
+- `number_matches` (int, optional): Number of matches in the tournament (can be None).
+- `is_active` (bool): Indicates whether the tournament is active or not.
+
+### Methods
+
+- `create_tournament(session, **kwargs) -> Tournament`
+    
+    Creates a new tournament.
+    
+    ### Parameters:
+    
+    - `session` (Session): SQLAlchemy session.
+    - `*kwargs`: Additional tournament data.
+    
+    ### Returns:
+    
+    - `Tournament`: The created tournament.
+    
+    ### Raises:
+    
+    - `ValueError`: If an error occurs during tournament creation.
+
+### Competitor Class
+
+The Competitor class represents participants in a sports tournament. It is designed to store information about competitors, including their name, group, associated tournament, and status.
+
+### Attributes
+
+- `id (int)`: Unique identifier for the competitor (Primary Key).
+- `name (str)`: Name of the competitor.
+- `group (Enum)`: Competitor's group (e.g., 'group_1' or 'group_2').
+- `tournament_id (int)`: Foreign key referencing the associated tournament.
+- `tournament (relationship)`: Relationship with the 'Tournament' class.
+- `status (bool)`: Indicates the competitor's active status.
+
+### Methods
+
+### _number_of_matches(number_competitors) -> int
+
+This function calculates the number of matches needed for a tournament based on the number of competitors.
+
+**Parameters:**
+
+- `number_competitors (int)`: Number of competitors in the tournament.
+
+**Returns:**
+
+- `int`: Number of matches.
+
+### create_competitors(names, tournament_id, session) -> None
+
+Creates competitors, validates the associated tournament, and adds competitors to groups based on the tournament's brackets.
+
+**Parameters:**
+
+- `names (list)`: List of competitor names.
+- `tournament_id (int)`: ID of the associated tournament.
+- `session (Session)`: SQLAlchemy session.
+
+**Raises:**
+
+- `ValueError`: If the tournament ID is not found, the tournament has already started, or there are fewer than 2 competitors.
+
+
+### Match Class
+
+The `Match` class represents individual matches within a sports tournament. It manages the pairing of competitors, tracks the winner, and maintains the state of each match.
+
+### Attributes
+
+- **id (int):** Unique identifier for the match (Primary Key).
+- **competitor_1_id (int):** Foreign key referencing the first competitor.
+- **competitor_2_id (int):** Foreign key referencing the second competitor.
+- **winner_id (int):** Foreign key referencing the winner.
+- **tournament_id (int):** Foreign key referencing the associated tournament.
+- **competitor_1 (relationship):** Relationship with the 'Competitor' class for the first competitor.
+- **competitor_2 (relationship):** Relationship with the 'Competitor' class for the second competitor.
+- **winner (relationship):** Relationship with the 'Competitor' class for the winner.
+- **tournament (relationship):** Relationship with the 'Tournament' class.
+- **round (int):** Round number of the match.
+- **state (Enum):** State of the match ('pending' or 'finished').
+
+### Methods
+
+#### `_set_pair(names) -> list[tuple[Competitor]]`
+
+Sets pairs for the matches based on the provided list of competitor names. If the list has an odd length, one competitor is placed alone in a tuple.
+
+#### Parameters:
+
+- `names (list):` List of competitor names.
+
+#### Returns:
+
+- `list[tuple[Competitor]]:` Pairs of competitors for the matches.
+
+#### `create_match(tournament_id: int, session: Session) -> None`
+
+Creates matches for a tournament, verifies if it is the last round, and adds competitors to their respective matches.
+
+#### Parameters:
+
+- `tournament_id (int):` ID of the associated tournament.
+- `session (Session):` SQLAlchemy session.
+
+#### `list_matches(tournament_id: int, session: Session) -> dict`
+
+Lists all matches from a tournament in a dictionary format.
+
+#### Parameters:
+
+- `tournament_id (int):` ID of the associated tournament.
+- `session (Session):` SQLAlchemy session.
+
+#### Returns:
+
+- `dict:` Dictionary with rounds and match details.
+
+
+#### `set_winner`
+
+Sets the winner of a match and updates the state of the competitors.
+
+### Parameters
+
+- `match_id (int):` Unique identifier for the match.
+- `name (str):` Name of the winner.
+- `session (Session):` SQLAlchemy session.
+
+### Returns
+
+- `Match:` The updated match.
+
+#### `get_topfour`
+
+Fetches the finalists, determines the winner, 2nd place, fetches the semifinalists, and determines the 3rd and 4th places.
+
+### Parameters
+
+- `tournament (int):` ID of the associated tournament.
+- `session (Session):` SQLAlchemy session.
+
+### Returns
+
+- `dict:` Dictionary with information about the top four competitors.
+
+#### `_create_consolation_match`
+
+Creates a consolation match for a tournament.
+
+### Parameters
+
+- `tournament_id (int):` ID of the tournament.
+- `last_round (int):` The last round number.
+- `session (Session):` SQLAlchemy session.
+
+#### `_should_create_consolation`
+
+Verifies if a consolation match should be created.
+
+### Parameters
+
+- `total (int):` Total number of matches expected.
+- `matches (list[Match]):` List of matches.
+
+### Returns
+
+- `bool:` True if a consolation match should be created, False otherwise.
