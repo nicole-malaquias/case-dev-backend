@@ -118,10 +118,10 @@ This project utilizes Continuous Integration (CI) within the repository. Any cod
 ├── tests
 │   ├── conftest.py
 │   ├── __init__.py
-│   │   ├── conftest.cpython-311-pytest-7.4.4.pyc
+│   │   ├── conftest.pyc
 │   │   ├── __init__.cpython-311.pyc
-│   │   ├── test_db.cpython-311-pytest-7.4.4.pyc
-│   │   └── test_routes.cpython-311-pytest-7.4.4.pyc
+│   │   ├── test_db.pyc
+│   │   └── test_routes.pyc
 │   ├── test_db.py
 │   └── test_routes.py
 ```

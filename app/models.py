@@ -490,13 +490,21 @@ class Match(Base):
         Fetches the finalists and determines the winner, 2nd place,
         fetches the semifinalists and determines the 3rd and 4th places.
         """
-
         championship = session.query(Tournament).get(tournament)
+        total_rounds = (
+            championship.number_matches + 1
+            if championship.number_matches
+            else 0
+        )
+        if not total_rounds:
+            return 'The championship has not had any matches and has not concluded yet.'   # noqa
+
         competitors = (
             session.query(Competitor)
             .filter(Competitor.tournament_id == tournament)
             .all()
         )
+
         finalists = (
             session.query(Match)
             .filter(
@@ -505,6 +513,9 @@ class Match(Base):
             )
             .order_by(desc(Match.round))
         )
+        if total_rounds != finalists[0].round:
+            return 'The championship is not over yet.'
+
         # if the championship has only two competitors and one match
         if len(competitors) == 2 and championship.number_matches == 1:
             result = {}

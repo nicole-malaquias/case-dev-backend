@@ -133,7 +133,6 @@ def get_topfour(tournament_id: int, session: Session):
     Returns:
         A dictionary containing information about the top 4 competitors.
     """
-
     try:
         top4 = Match.get_topfour(tournament_id, session)
 

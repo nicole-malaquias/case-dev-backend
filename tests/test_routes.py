@@ -18,6 +18,16 @@ def create_test_tournament(client, session):
     assert all(fields_present)
 
 
+def create_tournament_get_id(client, name, date_start, date_end):
+    tournament_payload = {
+        'name': name,
+        'date_start': date_start,
+        'date_end': date_end,
+    }
+    response = client.post('/tournament', json=tournament_payload)
+    return response.json().get('id')
+
+
 def test_create_tournament_failure_invalid_dates(client, session):
     """
     Test creating a tournament with invalid date range.
@@ -313,7 +323,9 @@ def test_set_winner_for_match_successfully(client, session):
 
 
 def test_winner_consolation_match(client, session):
-
+    """
+    This test if create a match for the consolation round
+    """
     tournament_payload = {
         'name': 'Tournament Teste Consolation',
         'date_start': '2024-01-29T12:00:00',
@@ -378,14 +390,16 @@ def test_winner_consolation_match(client, session):
 
 
 def test_create_consolation_match(client, session):
+    """
+    This test is to check if will create the final list
+    """
+    tournament_name = 'Example Tournament'
+    tournament_date_start = '2024-01-29T12:00:00'
+    tournament_date_end = '2024-02-05T18:00:00'
 
-    tournament_payload = {
-        'name': 'Example Tournament',
-        'date_start': '2024-01-29T12:00:00',
-        'date_end': '2024-02-05T18:00:00',
-    }
-    tournament_response = client.post('/tournament', json=tournament_payload)
-    tournament_id = tournament_response.json().get('id', '')
+    tournament_id = create_tournament_get_id(
+        client, tournament_name, tournament_date_start, tournament_date_end
+    )
 
     competitor_payload = {
         'names': ['Competitor1', 'Competitor2', 'Competitor3', 'Competitor4']
@@ -418,16 +432,19 @@ def test_create_consolation_match(client, session):
     assert response.status_code == 201
 
 
-def test_get_to_generate_the_final_list_and_not_create_unnecessary(
-    client, session
-):
-    tournament_payload = {
-        'name': 'Example Tournament',
-        'date_start': '2024-01-29T12:00:00',
-        'date_end': '2024-02-05T18:00:00',
-    }
-    tournament_response = client.post('/tournament', json=tournament_payload)
-    tournament_id = tournament_response.json().get('id', '')
+def test_get_to_generate_the_final_list_and_not_create_unnecessary(client):
+    """
+    This test is to check if will create the final list
+    if the final list is already created
+    or it's not time to create the final list
+    """
+    tournament_name = 'Example Tournament'
+    tournament_date_start = '2024-01-29T12:00:00'
+    tournament_date_end = '2024-02-05T18:00:00'
+
+    tournament_id = create_tournament_get_id(
+        client, tournament_name, tournament_date_start, tournament_date_end
+    )
 
     competitor_payload = {
         'names': ['Competitor1', 'Competitor2', 'Competitor3', 'Competitor4']
@@ -508,17 +525,19 @@ def get_matches(client, tournament_id):
     return response.json()
 
 
-def test_get_topfour(client, session):
-    tournament_payload = {
-        'name': 'Example Tournament',
-        'date_start': '2024-01-29T12:00:00',
-        'date_end': '2024-02-05T18:00:00',
-    }
+def test_get_topfour(client):
+
+    tournament_name = 'Example Tournament'
+    tournament_date_start = '2024-01-29T12:00:00'
+    tournament_date_end = '2024-02-05T18:00:00'
+
+    tournament_id = create_tournament_get_id(
+        client, tournament_name, tournament_date_start, tournament_date_end
+    )
     competitor_payload = {
         'names': ['Competitor1', 'Competitor2', 'Competitor3', 'Competitor4']
     }
 
-    tournament_id = create_tournament(client, session, tournament_payload)
     create_competitors(client, tournament_id, competitor_payload)
 
     matches_round_1 = get_matches(client, tournament_id)['Round 1']
@@ -553,7 +572,7 @@ def test_get_topfour(client, session):
     )
 
 
-def test_get_topfour_with_two_competitor(client, session):
+def test_get_topfour_with_two_competitor(client):
     """
     Test the retrieval of the top 4 competitors
       in a tournament with two competitors.
@@ -569,16 +588,13 @@ def test_get_topfour_with_two_competitor(client, session):
     Verify if all steps are successful and if the status codes are correct.
     """
     # Step 1: Create Tournament
-    tournament_payload = {
-        'name': 'Example Tournament',
-        'date_start': '2024-01-29T12:00:00',
-        'date_end': '2024-02-05T18:00:00',
-    }
-    response_create_tournament = client.post(
-        '/tournament', json=tournament_payload
+    tournament_name = 'Example Tournament'
+    tournament_date_start = '2024-01-29T12:00:00'
+    tournament_date_end = '2024-02-05T18:00:00'
+
+    tournament_id = create_tournament_get_id(
+        client, tournament_name, tournament_date_start, tournament_date_end
     )
-    assert response_create_tournament.status_code == 201
-    tournament_id = response_create_tournament.json().get('id')
 
     # Step 2: Add Competitors
     competitor_payload = {'names': ['Competitor1', 'Competitor2']}
@@ -618,7 +634,7 @@ def test_get_topfour_with_two_competitor(client, session):
     assert response_get_tournament_result.status_code == 201
 
 
-def test_get_topfour_with_three_competitor(client, session):
+def test_get_topfour_with_three_competitor(client):
     """
     Test the retrieval of the top 4 competitors
       in a tournament with two competitors.
@@ -634,16 +650,13 @@ def test_get_topfour_with_three_competitor(client, session):
     Verify if all steps are successful and if the status codes are correct.
     """
     # Step 1: Create Tournament
-    tournament_payload = {
-        'name': 'Example Tournament',
-        'date_start': '2024-01-29T12:00:00',
-        'date_end': '2024-02-05T18:00:00',
-    }
-    response_create_tournament = client.post(
-        '/tournament', json=tournament_payload
+    tournament_name = 'Example Tournament'
+    tournament_date_start = '2024-01-29T12:00:00'
+    tournament_date_end = '2024-02-05T18:00:00'
+
+    tournament_id = create_tournament_get_id(
+        client, tournament_name, tournament_date_start, tournament_date_end
     )
-    assert response_create_tournament.status_code == 201
-    tournament_id = response_create_tournament.json().get('id')
 
     # Step 2: Add Competitors
     competitor_payload = {
@@ -696,3 +709,26 @@ def test_get_topfour_with_three_competitor(client, session):
     )
 
     assert response_get_tournament_result.status_code == 201
+
+
+def test_take_result_but_the_tournament_is_not_end(client):
+    # Step 1: Create Tournament
+    tournament_name = 'Example Tournament'
+    tournament_date_start = '2024-01-29T12:00:00'
+    tournament_date_end = '2024-02-05T18:00:00'
+
+    tournament_id = create_tournament_get_id(
+        client, tournament_name, tournament_date_start, tournament_date_end
+    )
+
+    # Step 2: Get Tournament Result
+    response_get_tournament_result = client.get(
+        f'/tournament/{tournament_id}/result'
+    )  # noqa
+    response = response_get_tournament_result.json()
+
+    # Step 3: Assertion
+    expected_response = (
+        'The championship has not had any matches and has not concluded yet.'
+    )
+    assert response == expected_response
