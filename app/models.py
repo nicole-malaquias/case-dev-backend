@@ -76,7 +76,6 @@ class Tournament(Base):
             logger.error(f'Error creating tournament: {str(e)}')
             session.rollback()
             raise ValueError('Error creating tournament.')
-       
 
 
 class Competitor(Base):

@@ -35,13 +35,13 @@ def create_tournament(tournament: TournamentSchema, session: Session):
         The created tournament.
     """
     try:
-        
+
         new_tournament = Tournament.create_tournament(
             session=session, **tournament.dict()
         )
 
         return new_tournament
-    
+
     except Exception as e:
 
         return HTTPException(status_code=500, detail=str(e))

@@ -1,7 +1,6 @@
 from app.models import Competitor, Match, Tournament
 
 
-
 def create_test_tournament(client, session):
     payload = {
         'name': 'Torneio de Exemplo',
