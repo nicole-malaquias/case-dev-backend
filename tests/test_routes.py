@@ -1,6 +1,7 @@
 from app.models import Competitor, Match, Tournament
 
 
+
 def create_test_tournament(client, session):
     payload = {
         'name': 'Torneio de Exemplo',
@@ -36,7 +37,9 @@ def test_create_tournament_failure_invalid_dates(client, session):
 
 
 def test_register_competitor_after_tournament_start(client, session):
-    ...
+    """
+    Test registering competitors for a tournament after it has started.
+    """
     payload = {
         'name': 'Example Tournament',
         'date_start': '2024-01-29T12:00:00',
@@ -53,8 +56,7 @@ def test_register_competitor_after_tournament_start(client, session):
     response = client.post(
         f'/tournament/{tournament_id}/competitor', json=competitor_payload
     )
-    print('\n' * 5)
-    print(response.json())
+    assert response.status_code == 404
 
 
 def test_register_competitors_tournament_not_found(client, session):
@@ -252,10 +254,8 @@ def test_set_winner_for_nonexistent_tournament(client, session):
     - Attempts to set a winner for a match in a tournament with ID 999.
     - Checks if the response status code is 404 (Not Found).
     """
-    response = client.post('/tournament/999/match/1', json={'name': 'winner'})
-    print('\n' * 5)
-    print(response.json())
-    assert response.status_code == 404
+    respons = client.post('/tournament/999/match/1', json={'name': 'winner'})
+    assert respons.status_code == 404
 
 
 def test_set_winner_for_match_successfully(client, session):
@@ -416,7 +416,6 @@ def test_create_consolation_match(client, session):
     assert response_rodada_2.status_code == 201
 
     response = client.get(f'/tournament/{tournament_id}/match')
-
     assert response.status_code == 201
 
 
@@ -510,7 +509,7 @@ def get_matches(client, tournament_id):
     return response.json()
 
 
-def test_get_top4(client, session):
+def test_get_topfour(client, session):
     tournament_payload = {
         'name': 'Example Tournament',
         'date_start': '2024-01-29T12:00:00',
@@ -555,7 +554,7 @@ def test_get_top4(client, session):
     )
 
 
-def test_get_top4_with_two_competitor(client, session):
+def test_get_topfour_with_two_competitor(client, session):
     """
     Test the retrieval of the top 4 competitors
       in a tournament with two competitors.
@@ -617,4 +616,84 @@ def test_get_top4_with_two_competitor(client, session):
     response_get_tournament_result = client.get(
         f'/tournament/{tournament_id}/result'
     )
+    assert response_get_tournament_result.status_code == 201
+
+
+def test_get_topfour_with_three_competitor(client, session):
+    """
+    Test the retrieval of the top 4 competitors
+      in a tournament with two competitors.
+
+    Steps:
+    1. Create a tournament.
+    2. Add two competitors to the tournament.
+    3. Retrieve the matches of the tournament.
+    4. Post the result of the first match.
+    5. Retrieve the matches again.
+    6. Retrieve the results of the tournament.
+
+    Verify if all steps are successful and if the status codes are correct.
+    """
+    # Step 1: Create Tournament
+    tournament_payload = {
+        'name': 'Example Tournament',
+        'date_start': '2024-01-29T12:00:00',
+        'date_end': '2024-02-05T18:00:00',
+    }
+    response_create_tournament = client.post(
+        '/tournament', json=tournament_payload
+    )
+    assert response_create_tournament.status_code == 201
+    tournament_id = response_create_tournament.json().get('id')
+
+    # Step 2: Add Competitors
+    competitor_payload = {
+        'names': ['Competitor1', 'Competitor2', 'Competitor3']
+    }
+    response_add_competitors = client.post(
+        f'/tournament/{tournament_id}/competitor', json=competitor_payload
+    )
+    assert response_add_competitors.status_code == 201
+
+    # Step 3: Retrieve Matches
+    # client.get(f'/tournament/{tournament_id}/match')
+    response_get_matches = client.get(f'/tournament/{tournament_id}/match')
+
+    # assert response_get_matches.status_code == 201
+    matches_round_1 = response_get_matches.json()
+
+    # Step 4: Post Match Result
+    winner_name = matches_round_1['Round 1'][0]['competitor_1']
+    match_id = matches_round_1['Round 1'][0]['id']
+    response_post_match_result = client.post(
+        f'/tournament/{tournament_id}/match/{match_id}',
+        json={'name': winner_name},
+    )
+    assert response_post_match_result.status_code == 201
+
+    # Step 5: Retrieve Matches Again
+    client.get(f'/tournament/{tournament_id}/match')
+    response_get_matches_again = client.get(
+        f'/tournament/{tournament_id}/match'
+    )
+
+    assert response_get_matches_again.status_code == 201
+
+    # registre the winner
+    response = response_get_matches_again.json()
+
+    winner_name = response['Round 3'][0]['competitor_1']
+    last_match_id = response['Round 3'][0]['id']
+
+    response_post_match_result = client.post(
+        f'/tournament/{tournament_id}/match/{last_match_id}',
+        json={'name': winner_name},
+    )
+
+    client.get(f'/tournament/{tournament_id}/match')
+
+    response_get_tournament_result = client.get(
+        f'/tournament/{tournament_id}/result'
+    )
+
     assert response_get_tournament_result.status_code == 201
