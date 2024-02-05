@@ -16,6 +16,8 @@ class TournamentSchema(BaseModel):
             data_dt1 = datetime.fromisoformat(str(v))
             if data_dt1 < values['date_start']:
                 raise ValueError('date_end must be greater than date_start')
+            if data_dt1 == values['date_start']:
+                raise ValueError('date_end must be greater than date_start')
         return v
 
 

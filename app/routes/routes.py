@@ -41,7 +41,9 @@ def create_tournament(tournament: TournamentSchema, session: Session):
         )
 
         return new_tournament
+
     except Exception as e:
+
         return HTTPException(status_code=500, detail=str(e))
 
 
@@ -57,7 +59,7 @@ def register_competitors(
         - names: List of competitor names.
     """
     try:
-        Competitor.create_competitor(
+        Competitor.create_competitors(
             names=competitor.names,
             tournament_id=tournament_id,
             session=session,
@@ -80,14 +82,13 @@ def get_match_list(tournament_id: int, session: Session):
         A dictionary containing information about the matches.
     """
     try:
-
         Match.create_match(tournament_id, session)
 
         matches_info = Match.list_matches(tournament_id, session)
 
         return matches_info
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.post('/tournament/{tournament_id}/match/{match_id}', status_code=201)
@@ -121,7 +122,7 @@ def put_winner_for_match(
 
 
 @router.get('/tournament/{tournament_id}/result', status_code=201)
-def get_top4(tournament: int, session: Session):
+def get_topfour(tournament_id: int, session: Session):
     """
     Gets the top 4 competitors in a specific tournament.
 
@@ -132,8 +133,10 @@ def get_top4(tournament: int, session: Session):
     Returns:
         A dictionary containing information about the top 4 competitors.
     """
+
     try:
-        top4 = Match.get_top4(tournament, session)
+        top4 = Match.get_topfour(tournament_id, session)
+
         return top4
     except Exception as e:
         raise HTTPException(status_code=404, detail=str(e))
